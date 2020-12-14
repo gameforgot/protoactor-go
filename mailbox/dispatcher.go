@@ -7,6 +7,7 @@ type Dispatcher interface {
 
 type goroutineDispatcher int
 
+// 缺省的调度器，调度的时候直接开启一个goroutine
 func (goroutineDispatcher) Schedule(fn func()) {
 	go fn()
 }
@@ -21,6 +22,7 @@ func NewDefaultDispatcher(throughput int) Dispatcher {
 
 type synchronizedDispatcher int
 
+// 同步调度器：直接在当前环境下执行函数调用
 func (synchronizedDispatcher) Schedule(fn func()) {
 	fn()
 }
