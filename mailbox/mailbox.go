@@ -79,6 +79,7 @@ func (m *defaultMailbox) schedule() {
 	}
 }
 
+// 针对异步调度器goroutineDispatcher，这里会开启一个goroutine来调用processMessages
 func (m *defaultMailbox) processMessages() {
 process:
 	m.run()
@@ -104,6 +105,7 @@ process:
 func (m *defaultMailbox) run() {
 	var msg interface{}
 
+	// 异常处理函数
 	defer func() {
 		if r := recover(); r != nil {
 			plog.Debug("[ACTOR] Recovering", log.Object("actor", m.invoker), log.Object("reason", r), log.Stack())

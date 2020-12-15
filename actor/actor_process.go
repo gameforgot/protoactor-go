@@ -6,6 +6,7 @@ import (
 	"github.com/AsynkronIT/protoactor-go/mailbox"
 )
 
+// 一个Actor Process可以看作Erlang里面一个独立的逻辑进程
 type ActorProcess struct {
 	mailbox mailbox.Mailbox
 	dead    int32

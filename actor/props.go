@@ -19,16 +19,16 @@ var (
 	defaultMailboxProducer = mailbox.Unbounded()
 	defaultSpawner         = func(id string, props *Props, parentContext SpawnerContext) (*PID, error) {
 		ctx := newActorContext(props, parentContext.Self())
-		mb := props.produceMailbox()
-		dp := props.getDispatcher()
-		proc := NewActorProcess(mb)
+		mb := props.produceMailbox() // 如果不显示指定的话，会创建一个defaultMailbox
+		dp := props.getDispatcher()  // 如果不显示指定的话，会创建一个goroutineDispatcher
+		proc := NewActorProcess(mb)  // 创建一个独立的逻辑进程，并注册ID和名称
 		pid, absent := ProcessRegistry.Add(proc, id)
 		if !absent {
 			return pid, ErrNameExists
 		}
 		ctx.self = pid
-		mb.Start()
-		mb.RegisterHandlers(ctx, dp)
+		mb.Start()                   // start事件
+		mb.RegisterHandlers(ctx, dp) // 设置message invoker回调为ctx
 		mb.PostSystemMessage(startedMessage)
 
 		return pid, nil

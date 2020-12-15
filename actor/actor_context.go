@@ -85,15 +85,15 @@ func (ctxExt *actorContextExtras) unwatch(watcher *PID) {
 }
 
 type actorContext struct {
-	actor             Actor
-	extras            *actorContextExtras
-	props             *Props
-	parent            *PID
-	self              *PID
-	receiveTimeout    time.Duration
-	producer          Producer
-	messageOrEnvelope interface{}
-	state             int32
+	actor             Actor               // 对应的Actor消息处理者
+	extras            *actorContextExtras // 额外数据
+	props             *Props              // 定义Actor应该如何被创建
+	parent            *PID                // parent唯一PID
+	self              *PID                // 该actor自身对应的PID
+	receiveTimeout    time.Duration       // 接收超时，一般用于同步RPC
+	producer          Producer            // 用于创建actor的Producer
+	messageOrEnvelope interface{}         //
+	state             int32               // 当前状态
 }
 
 func newActorContext(props *Props, parent *PID) *actorContext {
@@ -102,6 +102,7 @@ func newActorContext(props *Props, parent *PID) *actorContext {
 		props:  props,
 	}
 
+	// 通过props指定的Producer创建Actor
 	this.incarnateActor()
 	return this
 }
@@ -141,6 +142,7 @@ func (ctx *actorContext) ReceiveTimeout() time.Duration {
 	return ctx.receiveTimeout
 }
 
+// 返回当前actor上下文内的所有ChildrenID
 func (ctx *actorContext) Children() []*PID {
 	if ctx.extras == nil {
 		return make([]*PID, 0)
@@ -153,6 +155,7 @@ func (ctx *actorContext) Children() []*PID {
 	return r
 }
 
+// 应答消息给当前的发送者
 func (ctx *actorContext) Respond(response interface{}) {
 	// If the message is addressed to nil forward it to the dead letter channel
 	if ctx.Sender() == nil {
@@ -163,6 +166,7 @@ func (ctx *actorContext) Respond(response interface{}) {
 	ctx.Send(ctx.Sender(), response)
 }
 
+// 将当前还未处理完的消息存放到stash链表中
 func (ctx *actorContext) Stash() {
 	extra := ctx.ensureExtras()
 	if extra.stash == nil {
@@ -171,12 +175,14 @@ func (ctx *actorContext) Stash() {
 	extra.stash.Push(ctx.Message())
 }
 
+// 观察谁
 func (ctx *actorContext) Watch(who *PID) {
 	who.sendSystemMessage(&Watch{
 		Watcher: ctx.self,
 	})
 }
 
+// 取消观察谁
 func (ctx *actorContext) Unwatch(who *PID) {
 	who.sendSystemMessage(&Unwatch{
 		Watcher: ctx.self,
@@ -226,6 +232,7 @@ func (ctx *actorContext) receiveTimeoutHandler() {
 	}
 }
 
+// Forward当前消息给谁
 func (ctx *actorContext) Forward(pid *PID) {
 	if msg, ok := ctx.messageOrEnvelope.(SystemMessage); ok {
 		// SystemMessage cannot be forwarded
@@ -254,19 +261,22 @@ func (ctx *actorContext) AwaitFuture(f *Future, cont func(res interface{}, err e
 //
 // Interface: sender
 //
-
+// 获取消息
 func (ctx *actorContext) Message() interface{} {
 	return UnwrapEnvelopeMessage(ctx.messageOrEnvelope)
 }
 
+// 获取消息头
 func (ctx *actorContext) MessageHeader() ReadonlyMessageHeader {
 	return UnwrapEnvelopeHeader(ctx.messageOrEnvelope)
 }
 
+// 给指定的Actor发送消息
 func (ctx *actorContext) Send(pid *PID, message interface{}) {
 	ctx.sendUserMessage(pid, message)
 }
 
+// 具体的Impl函数：如果当前上下文内有sender中间件，则调用之
 func (ctx *actorContext) sendUserMessage(pid *PID, message interface{}) {
 	if ctx.props.senderMiddlewareChain != nil {
 		ctx.props.senderMiddlewareChain(ctx.ensureExtras().context, pid, WrapEnvelope(message))
@@ -275,6 +285,7 @@ func (ctx *actorContext) sendUserMessage(pid *PID, message interface{}) {
 	}
 }
 
+// 发送一个'请求类'的消息
 func (ctx *actorContext) Request(pid *PID, message interface{}) {
 	env := &MessageEnvelope{
 		Header:  nil,
@@ -309,7 +320,7 @@ func (ctx *actorContext) RequestFuture(pid *PID, message interface{}, timeout ti
 //
 // Interface: receiver
 //
-
+// 接收指定的消息进行处理
 func (ctx *actorContext) Receive(envelope *MessageEnvelope) {
 	ctx.messageOrEnvelope = envelope
 	ctx.defaultReceive()
@@ -317,24 +328,27 @@ func (ctx *actorContext) Receive(envelope *MessageEnvelope) {
 }
 
 func (ctx *actorContext) defaultReceive() {
+	// 收到'PoisonPill'消息则立刻关闭Actor，而不管它是否还有消息正在处理
 	if _, ok := ctx.Message().(*PoisonPill); ok {
 		ctx.Stop(ctx.self)
 		return
 	}
 
 	// are we using decorators, if so, ensure it has been created
+	// 如果有装饰器，则调用之
 	if ctx.props.contextDecoratorChain != nil {
 		ctx.actor.Receive(ctx.ensureExtras().context)
 		return
 	}
 
+	// 否则调用Actor进行消息处理
 	ctx.actor.Receive(Context(ctx))
 }
 
 //
 // Interface: spawner
 //
-
+// 根据props配置，启动一个Actor，并返回其PID
 func (ctx *actorContext) Spawn(props *Props) *PID {
 	pid, err := ctx.SpawnNamed(props, ProcessRegistry.NextId())
 	if err != nil {
@@ -358,6 +372,7 @@ func (ctx *actorContext) SpawnNamed(props *Props, name string) (*PID, error) {
 
 	var pid *PID
 	var err error
+	// 如果有配置中间件，则调用之
 	if ctx.props.spawnMiddlewareChain != nil {
 		pid, err = ctx.props.spawnMiddlewareChain(ctx.self.Id+"/"+name, props, ctx)
 	} else {
@@ -368,6 +383,7 @@ func (ctx *actorContext) SpawnNamed(props *Props, name string) (*PID, error) {
 		return pid, err
 	}
 
+	// 建立父子层级关系
 	ctx.ensureExtras().addChild(pid)
 
 	return pid, nil
@@ -449,6 +465,7 @@ func (ctx *actorContext) processMessage(m interface{}) {
 	ctx.messageOrEnvelope = nil // release message
 }
 
+// 构建Actor并赋值
 func (ctx *actorContext) incarnateActor() {
 	atomic.StoreInt32(&ctx.state, stateAlive)
 	ctx.actor = ctx.props.producer()
@@ -484,6 +501,7 @@ func (ctx *actorContext) handleRootFailure(failure *Failure) {
 }
 
 func (ctx *actorContext) handleWatch(msg *Watch) {
+	// 如果当前actor正在关闭中，则直接通知watcher
 	if atomic.LoadInt32(&ctx.state) >= stateStopping {
 		msg.Watcher.sendSystemMessage(&Terminated{
 			Who: ctx.self,
@@ -502,7 +520,9 @@ func (ctx *actorContext) handleUnwatch(msg *Unwatch) {
 
 func (ctx *actorContext) handleRestart(msg *Restart) {
 	atomic.StoreInt32(&ctx.state, stateRestarting)
+	// 通知应用层重启
 	ctx.InvokeUserMessage(restartingMessage)
+	// 关闭所有孩子的执行
 	ctx.stopAllChildren()
 	ctx.tryRestartOrTerminate()
 }
@@ -554,8 +574,10 @@ func (ctx *actorContext) tryRestartOrTerminate() {
 		return
 	}
 
+	// 如果有设置接收超时定时器的话，则删除掉
 	ctx.CancelReceiveTimeout()
 
+	// 重启或关闭
 	switch atomic.LoadInt32(&ctx.state) {
 	case stateRestarting:
 		ctx.restart()
@@ -569,6 +591,7 @@ func (ctx *actorContext) restart() {
 	ctx.self.sendSystemMessage(resumeMailboxMessage)
 	ctx.InvokeUserMessage(startedMessage)
 	if ctx.extras != nil && ctx.extras.stash != nil {
+		// 将stash里面的数据全部pop出来逐个执行
 		for !ctx.extras.stash.Empty() {
 			msg, _ := ctx.extras.stash.Pop()
 			ctx.InvokeUserMessage(msg)
@@ -599,6 +622,7 @@ func (ctx *actorContext) finalizeStop() {
 
 func (ctx *actorContext) EscalateFailure(reason interface{}, message interface{}) {
 	failure := &Failure{Reason: reason, Who: ctx.self, RestartStats: ctx.ensureExtras().restartStats(), Message: message}
+	// 先暂停执行
 	ctx.self.sendSystemMessage(suspendMailboxMessage)
 	if ctx.parent == nil {
 		ctx.handleRootFailure(failure)

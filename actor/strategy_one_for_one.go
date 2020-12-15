@@ -20,6 +20,7 @@ type oneForOne struct {
 	decider        DeciderFunc
 }
 
+// 策略：错误处理函数
 func (strategy *oneForOne) HandleFailure(supervisor Supervisor, child *PID, rs *RestartStatistics, reason interface{}, message interface{}) {
 	directive := strategy.decider(reason)
 
