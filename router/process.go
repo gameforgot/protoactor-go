@@ -18,11 +18,14 @@ type process struct {
 	stopping int32
 }
 
+// Actor Process: 发送用户级消息
 func (ref *process) SendUserMessage(pid *actor.PID, message interface{}) {
 	_, msg, _ := actor.UnwrapEnvelope(message)
+	// 如果不是管理类消息，则走路由
 	if _, ok := msg.(ManagementMessage); !ok {
 		ref.state.RouteMessage(message)
 	} else {
+		// 否则，找到当前路由ID对应的Actor处理器，进行处理
 		r, _ := actor.ProcessRegistry.Get(ref.router)
 		// Always send the original message to the router actor,
 		// since if the message is enveloped, the sender need to get a response.
@@ -30,6 +33,7 @@ func (ref *process) SendUserMessage(pid *actor.PID, message interface{}) {
 	}
 }
 
+// Actor Process: 发送系统级消息
 func (ref *process) SendSystemMessage(pid *actor.PID, message interface{}) {
 	switch msg := message.(type) {
 	case *actor.Watch:
@@ -51,6 +55,7 @@ func (ref *process) SendSystemMessage(pid *actor.PID, message interface{}) {
 	case *actor.Stop:
 		term := &actor.Terminated{Who: pid}
 		ref.mu.Lock()
+		// 通知它的watcher
 		ref.watchers.ForEach(func(_ int, other actor.PID) {
 			if !other.Equal(ref.parent) {
 				if r, ok := actor.ProcessRegistry.Get(&other); ok {
@@ -58,7 +63,7 @@ func (ref *process) SendSystemMessage(pid *actor.PID, message interface{}) {
 				}
 			}
 		})
-		// Notify parent
+		// 通知它的父Actor
 		if ref.parent != nil {
 			if r, ok := actor.ProcessRegistry.Get(ref.parent); ok {
 				r.SendSystemMessage(ref.parent, term)

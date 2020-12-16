@@ -76,6 +76,7 @@ func (a *Actor) Receive(ctx actor.Context) {
 	}
 }
 
+// Actor持久化测试，Actor重启恢复测试
 func main() {
 	provider := NewProvider(3)
 	provider.InitState("persistent", 4, 3)

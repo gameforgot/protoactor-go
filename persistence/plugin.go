@@ -5,6 +5,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+// 用来实现可靠消息？
 type persistent interface {
 	init(provider Provider, context actor.Context)
 	PersistReceive(message proto.Message)

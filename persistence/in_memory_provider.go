@@ -49,6 +49,7 @@ func (provider *InMemoryProvider) GetSnapshotInterval() int {
 	return provider.snapshotInterval
 }
 
+// 通过Actor名称，获取其对应的快照信息
 func (provider *InMemoryProvider) GetSnapshot(actorName string) (snapshot interface{}, eventIndex int, ok bool) {
 	entry, loaded := provider.loadOrInit(actorName)
 	if !loaded || entry.snapshot == nil {
@@ -57,12 +58,14 @@ func (provider *InMemoryProvider) GetSnapshot(actorName string) (snapshot interf
 	return entry.snapshot, entry.eventIndex, true
 }
 
+// 保存（持久化）快照信息
 func (provider *InMemoryProvider) PersistSnapshot(actorName string, eventIndex int, snapshot proto.Message) {
 	entry, _ := provider.loadOrInit(actorName)
 	entry.eventIndex = eventIndex
 	entry.snapshot = snapshot
 }
 
+// 从eventIndexStart之后，依次对事件调用callback函数
 func (provider *InMemoryProvider) GetEvents(actorName string, eventIndexStart int, callback func(e interface{})) {
 	entry, _ := provider.loadOrInit(actorName)
 	for _, e := range entry.events[eventIndexStart:] {
@@ -70,6 +73,7 @@ func (provider *InMemoryProvider) GetEvents(actorName string, eventIndexStart in
 	}
 }
 
+// 保存（持久化）一个事件
 func (provider *InMemoryProvider) PersistEvent(actorName string, eventIndex int, event proto.Message) {
 	entry, _ := provider.loadOrInit(actorName)
 	entry.events = append(entry.events, event)

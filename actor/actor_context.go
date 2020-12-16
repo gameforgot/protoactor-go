@@ -2,6 +2,7 @@ package actor
 
 import (
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -621,6 +622,7 @@ func (ctx *actorContext) finalizeStop() {
 //
 
 func (ctx *actorContext) EscalateFailure(reason interface{}, message interface{}) {
+	fmt.Println("actorContext EscalateFailure")
 	failure := &Failure{Reason: reason, Who: ctx.self, RestartStats: ctx.ensureExtras().restartStats(), Message: message}
 	// 先暂停执行
 	ctx.self.sendSystemMessage(suspendMailboxMessage)

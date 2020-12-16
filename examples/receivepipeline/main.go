@@ -17,6 +17,7 @@ func receive(context actor.Context) {
 	}
 }
 
+// 测试Receiver中间件用法
 func main() {
 	rootContext := actor.EmptyRootContext
 	props := actor.PropsFromFunc(receive).WithReceiverMiddleware(middleware.Logger)

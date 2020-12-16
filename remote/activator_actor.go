@@ -15,6 +15,7 @@ var (
 )
 
 func spawnActivatorActor() {
+	// newActivatorActor 并设置它为自动重启的
 	props := actor.PropsFromProducer(newActivatorActor()).WithGuardian(actor.RestartingSupervisorStrategy())
 	activatorPid, _ = rootContext.SpawnNamed(props, "activator")
 }

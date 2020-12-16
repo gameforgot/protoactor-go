@@ -19,6 +19,7 @@ func NewActorProcess(mailbox mailbox.Mailbox) *ActorProcess {
 func (ref *ActorProcess) SendUserMessage(pid *PID, message interface{}) {
 	ref.mailbox.PostUserMessage(message)
 }
+
 func (ref *ActorProcess) SendSystemMessage(pid *PID, message interface{}) {
 	ref.mailbox.PostSystemMessage(message)
 }

@@ -21,6 +21,7 @@ func doWork(ctx actor.Context) {
 
 func main() {
 	rootContext := actor.EmptyRootContext
+	// 同时开启maxConcurrency个actor并发
 	pid := rootContext.Spawn(router.NewRoundRobinPool(maxConcurrency).WithFunc(doWork))
 	for i := 0; i < 1000; i++ {
 		rootContext.Send(pid, &workItem{i})

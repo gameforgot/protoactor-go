@@ -142,6 +142,7 @@ func (props *Props) WithSupervisor(supervisor SupervisorStrategy) *Props {
 	return props
 }
 
+// 添加一个接收中间件处理器
 // Assign one or more middleware to the props
 func (props *Props) WithReceiverMiddleware(middleware ...ReceiverMiddleware) *Props {
 	props.receiverMiddleware = append(props.receiverMiddleware, middleware...)

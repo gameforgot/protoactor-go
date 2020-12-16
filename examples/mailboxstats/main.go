@@ -23,6 +23,7 @@ func (m *mailboxLogger) MailboxEmpty() {
 	log.Print("No more messages")
 }
 
+// 测试mailbox的统计功能
 func main() {
 	rootContext := actor.EmptyRootContext
 	props := actor.PropsFromFunc(func(ctx actor.Context) {

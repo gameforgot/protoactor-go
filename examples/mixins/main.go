@@ -42,6 +42,7 @@ func (p *NamerPlugin) OnStart(ctx actor.ReceiverContext) {
 }
 func (p *NamerPlugin) OnOtherMessage(ctx actor.ReceiverContext, env *actor.MessageEnvelope) {}
 
+// 测试中间件和Plugin的用法
 func main() {
 	rootContext := actor.EmptyRootContext
 	props := actor.

@@ -20,7 +20,7 @@ var (
 // remote root context
 var rootContext = actor.EmptyRootContext
 
-// Start the remote server
+// 开启远程服务模式，开启远程服务后，才可以同其它节点上的Actor进行通讯
 func Start(address string, options ...RemotingOption) {
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2(ioutil.Discard, ioutil.Discard, ioutil.Discard))
 	lis, err := net.Listen("tcp", address)

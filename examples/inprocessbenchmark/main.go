@@ -79,6 +79,7 @@ func newPingActor(stop *sync.WaitGroup, messageCount int, batchSize int) actor.P
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var blockProfile = flag.String("blockprof", "", "execute contention profiling and save results here")
 
+// 开启2*NCPU个client和echo Actor，每次发送和接收100W条消息，测试其性能
 func main() {
 	flag.Parse()
 	if *cpuprofile != "" {
@@ -159,8 +160,10 @@ func main() {
 		log.Printf("			%v			%s			%v", tp, elapsed, x)
 		for i := 0; i < clientCount; i++ {
 			client := clients[i]
+			// 等待client结束
 			rootContext.StopFuture(client).Wait()
 			echo := echos[i]
+			// 等待echo结束
 			rootContext.StopFuture(echo).Wait()
 		}
 		runtime.GC()
