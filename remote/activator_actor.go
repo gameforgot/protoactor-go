@@ -14,6 +14,8 @@ var (
 	activatorPid *actor.PID
 )
 
+// Actor:Activator 专门用来给远端创建Actor
+
 func spawnActivatorActor() {
 	// newActivatorActor 并设置它为自动重启的
 	props := actor.PropsFromProducer(newActivatorActor()).WithGuardian(actor.RestartingSupervisorStrategy())
@@ -90,6 +92,7 @@ func SpawnNamed(address, name, kind string, timeout time.Duration) (*ActorPidRes
 	}
 }
 
+// Activator:催化剂|媒剂
 func newActivatorActor() actor.Producer {
 	return func() actor.Actor {
 		return &activator{}
@@ -101,6 +104,7 @@ func (*activator) Receive(context actor.Context) {
 	case *actor.Started:
 		plog.Debug("Started Activator")
 	case *ActorPidRequest:
+		// 根据名称查询PID
 		props, exist := nameLookup[msg.Kind]
 
 		// if props not exist, return error and panic
@@ -119,6 +123,7 @@ func (*activator) Receive(context actor.Context) {
 			name = actor.ProcessRegistry.NextId()
 		}
 
+		// 根据配置在本端创建一个Actor
 		pid, err := rootContext.SpawnNamed(&props, "Remote$"+name)
 
 		if err == nil {

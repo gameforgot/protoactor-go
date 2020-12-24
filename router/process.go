@@ -21,11 +21,16 @@ type process struct {
 // Actor Process: 发送用户级消息
 func (ref *process) SendUserMessage(pid *actor.PID, message interface{}) {
 	_, msg, _ := actor.UnwrapEnvelope(message)
-	// 如果不是管理类消息，则走路由
+	// 如果不是管理类消息，则根据state设置好的规则，将消息forward出去
 	if _, ok := msg.(ManagementMessage); !ok {
 		ref.state.RouteMessage(message)
 	} else {
-		// 否则，找到当前路由ID对应的Actor处理器，进行处理
+		// 目前支持的管理类消息如下：
+		// func (*AddRoutee) ManagementMessage()        {}
+		// func (*RemoveRoutee) ManagementMessage()     {}
+		// func (*GetRoutees) ManagementMessage()       {}
+		// func (*AdjustPoolSize) ManagementMessage()   {}
+		// func (*BroadcastMessage) ManagementMessage() {}
 		r, _ := actor.ProcessRegistry.Get(ref.router)
 		// Always send the original message to the router actor,
 		// since if the message is enveloped, the sender need to get a response.
@@ -34,6 +39,7 @@ func (ref *process) SendUserMessage(pid *actor.PID, message interface{}) {
 }
 
 // Actor Process: 发送系统级消息
+// 注意：Watch,Unwatch消息是直接Lock,Handle,Unlock的，并没有走消息投递
 func (ref *process) SendSystemMessage(pid *actor.PID, message interface{}) {
 	switch msg := message.(type) {
 	case *actor.Watch:

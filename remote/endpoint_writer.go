@@ -38,6 +38,8 @@ func (state *endpointWriter) initialize() {
 	}
 }
 
+// 初始化grpc客户端
+// state.stream 实现了两个方法:Recv, Send
 func (state *endpointWriter) initializeInternal() error {
 	plog.Info("Started EndpointWriter", log.String("address", state.address))
 	plog.Info("EndpointWriter connecting", log.String("address", state.address))
@@ -47,6 +49,7 @@ func (state *endpointWriter) initializeInternal() error {
 	}
 	state.conn = conn
 	c := NewRemotingClient(conn)
+	// 主动调用Connect函数，连接到对端
 	resp, err := c.Connect(context.Background(), &ConnectRequest{})
 	if err != nil {
 		return err
@@ -59,6 +62,8 @@ func (state *endpointWriter) initializeInternal() error {
 		return err
 	}
 	go func() {
+		// 注意，这里对端的Server一直没有Invoke stream.Send(*Unit) 进行发送
+		// 所以它会一直阻塞，直到该连接断开，才会返回err
 		_, err := stream.Recv()
 		if err != nil {
 			plog.Info("EndpointWriter lost connection to address", log.String("address", state.address), log.Error(err))
@@ -134,6 +139,7 @@ func (state *endpointWriter) sendEnvelopes(msg []interface{}, ctx actor.Context)
 		TargetNames: targetNamesArr,
 		Envelopes:   envelopes,
 	}
+	// 批量转发
 	err := state.stream.Send(batch)
 
 	if err != nil {
@@ -165,6 +171,7 @@ func (state *endpointWriter) Receive(ctx actor.Context) {
 	case *EndpointTerminatedEvent:
 		ctx.Stop(ctx.Self())
 	case []interface{}:
+		// 从本端其它Actor发来的包，经过本端writer进行转发
 		state.sendEnvelopes(msg, ctx)
 	case actor.SystemMessage, actor.AutoReceiveMessage:
 		// ignore

@@ -10,6 +10,7 @@ import (
 	"github.com/AsynkronIT/protoactor-go/eventstream"
 )
 
+// 负责管理本端消息的收发
 var endpointManager *endpointManagerValue
 
 type endpointLazy struct {
@@ -44,6 +45,7 @@ func startEndpointManager(config *remoteConfig) {
 		endpointSupervisor: endpointSupervisor,
 	}
 
+	// 仅监听EndpointTerminatedEvent,EndpointConnectedEvent
 	endpointManager.endpointSub = eventstream.
 		Subscribe(endpointManager.endpointEvent).
 		WithPredicate(func(m interface{}) bool {
@@ -97,6 +99,7 @@ func (em *endpointManagerValue) remoteDeliver(msg *remoteDeliver) {
 	rootContext.Send(endpoint.writer, msg)
 }
 
+// 每次发送时都要调用一次，确保连接到远端，这种称为"惰性连接"
 func (em *endpointManagerValue) ensureConnected(address string) *endpoint {
 	e, ok := em.connections.Load(address)
 	if !ok {
@@ -110,6 +113,7 @@ func (em *endpointManagerValue) ensureConnected(address string) *endpoint {
 					return ep
 				}
 			})
+			// 奇技淫巧：如果el.valueFunc没有被赋值为新值，则一直递归，直到连接远端成功
 			return el.valueFunc()
 		}
 		e, _ = em.connections.LoadOrStore(address, el)
@@ -138,8 +142,11 @@ func newEndpointSupervisor() actor.Actor {
 	return &endpointSupervisor{}
 }
 
+// 本端管理者
+// 收到消息，表示要对此地址建立grpc连接
 func (state *endpointSupervisor) Receive(ctx actor.Context) {
 	if address, ok := ctx.Message().(string); ok {
+		// 创建和管理writer, watcher
 		e := &endpoint{
 			writer:  state.spawnEndpointWriter(address, ctx),
 			watcher: state.spawnEndpointWatcher(address, ctx),

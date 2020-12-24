@@ -14,6 +14,10 @@ type endpointReader struct {
 	suspended bool
 }
 
+// grpc服务端逻辑
+// Connect, Receive函数为grpc Client.Dial成功之后所调用
+
+// 服务端处理Connect
 func (s *endpointReader) Connect(ctx context.Context, req *ConnectRequest) (*ConnectResponse, error) {
 	if s.suspended {
 		return nil, status.Error(codes.Canceled, "Suspended")
@@ -22,6 +26,7 @@ func (s *endpointReader) Connect(ctx context.Context, req *ConnectRequest) (*Con
 	return &ConnectResponse{DefaultSerializerId: DefaultSerializerID}, nil
 }
 
+// 客户端主动调用服务端的Receive
 func (s *endpointReader) Receive(stream Remoting_ReceiveServer) error {
 	targets := make([]*actor.PID, 100)
 	for {
@@ -30,6 +35,7 @@ func (s *endpointReader) Receive(stream Remoting_ReceiveServer) error {
 			continue
 		}
 
+		// 服务端的Reader收到远端数据之后，解包，然后根据PID发送给对应的Actor
 		batch, err := stream.Recv()
 		if err != nil {
 			plog.Debug("EndpointReader failed to read", log.Error(err))

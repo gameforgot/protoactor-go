@@ -38,7 +38,10 @@ func Start(address string, options ...RemotingOption) {
 	} else {
 		address = lis.Addr().String()
 	}
+
+	// 注册remote_process: 这样给远端Actor发包时，才可以找到对应的Handler Process进行处理
 	actor.ProcessRegistry.RegisterAddressResolver(remoteHandler)
+	// 设置本端地址
 	actor.ProcessRegistry.Address = address
 
 	spawnActivatorActor()
