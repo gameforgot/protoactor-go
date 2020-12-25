@@ -100,6 +100,7 @@ func (p *ConsulProvider) Shutdown() error {
 	return nil
 }
 
+// 开启一个goroutine来实时检测
 func (p *ConsulProvider) UpdateTTL() {
 	go func() {
 		for !p.shutdown {

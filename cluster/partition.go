@@ -107,6 +107,7 @@ func (state *partitionActor) Receive(context actor.Context) {
 
 func (state *partitionActor) spawn(msg *remote.ActorPidRequest, context actor.Context) {
 	// Check if exist in current partition dictionary
+	// 先根据名字进行查找，如果有的话直接返回
 	pid := state.partition[msg.Name]
 	if pid != nil {
 		response := &remote.ActorPidResponse{Pid: pid}
@@ -115,7 +116,9 @@ func (state *partitionActor) spawn(msg *remote.ActorPidRequest, context actor.Co
 	}
 
 	// Check if is spawning, if so just await spawning finish.
+	// 没有的话需要创建一个
 	spawning := state.spawnings[msg.Name]
+	// 如果正在创建，则等待创建完毕
 	if spawning != nil {
 		context.AwaitFuture(spawning.Future, func(r interface{}, err error) {
 			response, ok := r.(*remote.ActorPidResponse)
@@ -138,9 +141,11 @@ func (state *partitionActor) spawn(msg *remote.ActorPidRequest, context actor.Co
 
 	// Create SpawningProcess and cache it in spawnings dictionary.
 	spawning = &spawningProcess{actor.NewFuture(-1), activator}
+	// 设置其为正在创建中
 	state.spawnings[msg.Name] = spawning
 
 	// Await SpawningProcess
+	// activator 创建完毕并返回
 	context.AwaitFuture(spawning.Future, func(r interface{}, err error) {
 		delete(state.spawnings, msg.Name)
 
@@ -173,6 +178,7 @@ func (state *partitionActor) spawn(msg *remote.ActorPidRequest, context actor.Co
 	go state.spawning(msg, activator, 3, spawning.PID(), context)
 }
 
+// 通过远程的activator 远程Spawn一个Actor
 func (state *partitionActor) spawning(msg *remote.ActorPidRequest, activator string, retryLeft int, fPid *actor.PID, context actor.Context) {
 	if activator == "" {
 		activator = memberList.getActivatorMember(msg.Kind)
